@@ -77,7 +77,7 @@ class CharTitlesDBC(DBCFile):
 
 class SpellDBC(DBCFile):
     skeleton = [
-        UInt32('ID'),
+        UInt32('Id'),
         UInt32('Category'),
         UInt32('Dispel'),
         UInt32('Mechanic'),

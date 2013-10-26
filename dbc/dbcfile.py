@@ -8,7 +8,13 @@ from dtypes import *
 class DBCRecord(object):
     "A simple object to convert a dict to an object"
     def __init__(self, d):
-        self.__dict__.update(d)
+        self.RecordData = d
+
+    def __getitem__(self, key):
+        return self.RecordData[key]
+
+    def __setitem__(self, key, value):
+        self.RecordData[key] = value
 
 class DBCFile(object):
     """
@@ -17,10 +23,10 @@ class DBCFile(object):
     
     header_struct = Struct('4s4i') # 4 char (WDBC) and 4 ints.
 
-    def __init__(self, filename, skele=None, verbose=True):
+    def __init__(self, filename, skele=None):
         self.filename = filename
 
-        self.verbose = verbose
+        self.verbose = False
 
         if not hasattr(self, 'skeleton'):
             self.skeleton = skele
@@ -30,7 +36,10 @@ class DBCFile(object):
         self.StringBlockRead = False
         self.DataRead = False
 
-        self.Data = []
+        self.Data = dict()
+
+    def SetVerbosity(self, value):
+        self.verbose = value
 
     def ReadHeader(self):
         if not os.path.exists(self.filename):
@@ -81,10 +90,32 @@ class DBCFile(object):
                 Data_Unpacked = self.struct.unpack(self.f.read(self.RecordSize))
                 if self.verbose:
                     print('[DBC Data]: %s' % (Data_Unpacked,))
-                self.Data.append(DBCRecord(self.__process_record(Data_Unpacked)))
+                record = DBCRecord(self.__process_record(Data_Unpacked))
+                self.Data[record['Id']] = record
         finally:
             self.f.close()
             self.DataRead = True
+
+    def GetData(self, idx):
+        if not self.HeaderRead:
+            self.ReadHeader()
+        if not self.StringBlockRead:
+            self.ReadStringBlock()
+        if not self.DataRead:
+            self.ReadData()
+        if not self.Data[idx]:
+            raise Exception('Out of range (Data Index)')
+
+        return self.Data[idx]
+
+    def __getitem__(self, key):
+        return self.GetData(key)
+
+    def __setitem__(self, key, value):
+        self.DataDBC[key] = value
+
+    def __len__(self):
+        return len(self.Data)
    
     def __iter__(self):
         "Iterated based approach to the dbc reading"
@@ -97,8 +128,8 @@ class DBCFile(object):
         if not self.DataRead:
             self.ReadData()
 
-        for i in range(self.Records):
-            yield self.Data[i]
+        for Record in self.Data.values():
+            yield Record
 
     def __create_struct(self):
         "Creates a Struct from the Skeleton"

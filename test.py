@@ -3,8 +3,6 @@
 from dbc import *
 
 Titles = CharTitlesDBC('CharTitles.dbc')
+Titles.SetVerbosity(True)
 
-for title in Titles:
-    #print ', '.join(x for x in dir(spell) if not x.startswith('__'))
-    print(GetLocale(title.TitleMale, 'frFR'))
-    print(GetLocale(title.TitleFemale, 'frFR'))
+print (GetLocale(Titles[2]['TitleMale'], 'frFR'))
