@@ -15,58 +15,90 @@ class DBCFile(object):
     Base representation of a DBC file.
     """
     
-    header_struct = Struct('4s4i')
+    header_struct = Struct('4s4i') # 4 char (WDBC) and 4 ints.
 
-    def __init__(self, filename, skele=None, verbose=False):
+    def __init__(self, filename, skele=None, verbose=True):
         self.filename = filename
-        self.verbose = verbose # Currently unused
+
+        self.verbose = verbose
+
         if not hasattr(self, 'skeleton'):
             self.skeleton = skele
         self.__create_struct()
+
+        self.HeaderRead = False
+        self.StringBlockRead = False
+        self.DataRead = False
+
+        self.Data = []
+
+    def ReadHeader(self):
+        if not os.path.exists(self.filename):
+            raise Exception("File %s not found" % (self.filename,))
+
+        self.f = open(self.filename, 'rb')
+
+        # Read header
+        Signature, Records, Fields, RecordSize, StringBlockSize = self.header_struct.unpack(self.f.read(20))
+
+        # Check if signature is DBC's one
+        if (Signature.decode('utf-8')) != str('WDBC'):
+            self.f.close()
+            raise Exception('Invalid file type (invalid signature: %s)!' % Signature.decode('utf-8'))
+
+        self.Records = Records 
+        self.Fields = Fields 
+        self.RecordSize = RecordSize
+        self.StringBlockSize = StringBlockSize
+
+        if not self.struct:
+            self.skeleton = Array('data', Int32, Fields)
+            self.__create_struct()
+
+        if self.struct.size != RecordSize:
+            self.f.close()
+            raise Exception('Struct size mismatch (%d != %d' % (self.struct.size, RecordSize))
+
+        if self.verbose:
+            print('[DBC Header]: %i records, %i fields, %i record size, %i string block size.' % \
+                (self.Records, self.Fields, self.RecordSize, self.StringBlockSize))
+
+        self.HeaderRead = True
+
+    def ReadStringBlock(self):
+        self.f.seek(20 + self.Records * self.RecordSize)
+        self.StringBlock = self.f.read(self.StringBlockSize).decode('cp850')
+        self.f.seek(20)
+
+        if self.verbose:
+            print('[DBC String Block]: %s' % (self.StringBlock.encode('cp850')))
+
+        self.StringBlockRead = True
+
+    def ReadData(self):
+        try:
+            for i in range(self.Records):
+                Data_Unpacked = self.struct.unpack(self.f.read(self.RecordSize))
+                if self.verbose:
+                    print('[DBC Data]: %s' % (Data_Unpacked,))
+                self.Data.append(DBCRecord(self.__process_record(Data_Unpacked)))
+        finally:
+            self.f.close()
+            self.DataRead = True
    
     def __iter__(self):
         "Iterated based approach to the dbc reading"
-        if not os.path.exists(self.filename):
-            raise Exception("File '%s' not found" % (self.filename,))
+        if not self.HeaderRead:
+            self.ReadHeader()
         
-        f = file(self.filename, 'rb')
+        if not self.StringBlockRead:
+            self.ReadStringBlock()
 
-        # Read in header
-        sig, records, fields, record_size, string_block_size = \
-                self.header_struct.unpack(f.read(20))
+        if not self.DataRead:
+            self.ReadData()
 
-        # Check signature
-        if sig != 'WDBC':
-            f.close()
-            raise Exception('Invalid file type')
-
-        self.records = records
-        self.fields = fields
-        self.record_size = record_size
-        self.string_block_size = string_block_size
-       
-        if not self.struct:
-            # If the struct doesn't exist, create a default one
-            self.skeleton = Array('data', Int32, fields)
-            self.__create_struct()
-
-        # Ensure that struct and record_size is the same
-        if self.struct.size != record_size:
-            f.close()
-            raise Exception('Struct size mismatch (%d != %d)' % \
-                            (self.struct.size, record_size))
-        
-        # Read in string block
-        f.seek(20 + records * record_size)
-        self.string_block = f.read(string_block_size)
-        f.seek(20)
-
-        try:
-            for i in xrange(records):
-                data = self.struct.unpack(f.read(record_size))
-                yield DBCRecord(self.__process_record(data))
-        finally:
-            f.close()
+        for i in range(self.Records):
+            yield self.Data[i]
 
     def __create_struct(self):
         "Creates a Struct from the Skeleton"
@@ -84,8 +116,7 @@ class DBCFile(object):
     def __process_record(self, data):
         "Processes a record (row of data)"
         output = {}
-        i = 0
-        d = 0
+        i = d = 0
         while i < len(self.skeleton):
             if isinstance(self.skeleton[i], Array):
                 temp = []
@@ -110,12 +141,15 @@ class DBCFile(object):
         name = _type.name if _type.name else 0 # Default to name of 0 (for arrays)
         if isinstance(_type, String):
             if data == 0:
-                output[name] = unicode('', 'utf-8')
+                output[name] = str()
             else:
-                if data > self.string_block_size or self.string_block[data - 1] != '\0':
-                    raise Exception('Invalid string')
-                s = self.string_block[data:self.string_block.index('\0', data)]
-                output[name] = unicode(s, 'utf-8')
+                if data > self.StringBlockSize or self.StringBlock[data - 1] != '\0':
+                    raise Exception('Invalid string (%i, %s)' % (data, type(_type)))
+                else:
+                    s = self.StringBlock[data:self.StringBlock.index('\0', data)]
+                    output[name] = str(s)
+                    if self.verbose:
+                        print('[DBC Field]: String %s loaded.' % s)
         elif not isinstance(_type, PadByte): # Ignore PadBytes
             output[name] = data
         return output

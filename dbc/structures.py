@@ -69,7 +69,7 @@ class AchievementCriteriaDBC(DBCFile):
 class CharTitlesDBC(DBCFile):
     skeleton = [
         Int32('Id'),
-        PadByte(),#Int32('Unknown'),
+        PadByte(),#Int32('condition), Never used
         Localization('TitleMale'),
         Localization('TitleFemale'),
         Int32('SelectionIndex'),
@@ -82,12 +82,11 @@ class SpellDBC(DBCFile):
         UInt32('Dispel'),
         UInt32('Mechanic'),
         UInt32('Attributes'),
-        Array('AttributesEx', UInt32, 6), 
-        PadByte(),#UInt32('Unk1'),
+        Array('AttributesEx', UInt32, 7), 
         UInt32('Stances'),
-        PadByte(),#UInt32('Unk2'),
+        PadByte(),#UInt32('Unk2'), 3.2.0
         UInt32('StancesNot'),
-        PadByte(),#UInt32('Unk3'),
+        PadByte(),#UInt32('Unk3'), 3.2.0
         UInt32('Targets'),
         UInt32('TargetCreatureType'),
         UInt32('RequiresSpellFocus'),
@@ -177,7 +176,7 @@ class SpellDBC(DBCFile):
         UInt32('RuneCostID'),
         UInt32('SpellMissileID'),
         UInt32('PowerDisplayID'),
-        PadByte(12),#Array('Unk4', Float, 3),
+        Array('EffectBonusMultiplier', Float, 3),
         UInt32('SpellDescriptionVariableID'),
         UInt32('SpellDifficultyID'),
     ]

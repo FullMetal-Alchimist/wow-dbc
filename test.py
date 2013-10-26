@@ -2,9 +2,9 @@
 
 from dbc import *
 
-spells = SpellDBC('Spell.dbc')
+Titles = CharTitlesDBC('CharTitles.dbc')
 
-for spell in spells:
+for title in Titles:
     #print ', '.join(x for x in dir(spell) if not x.startswith('__'))
-    print spell.SpellName[0]
-    break
+    print(GetLocale(title.TitleMale, 'frFR'))
+    print(GetLocale(title.TitleFemale, 'frFR'))

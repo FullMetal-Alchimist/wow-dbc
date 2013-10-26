@@ -8,6 +8,9 @@ class Base(object):
     def __init__(self, name=''):
         self.name = name
 
+class Boolean(Base):
+    c = '?'
+
 class Int32(Base):
     c = 'i'
 
@@ -42,3 +45,9 @@ class Localization(Array):
     def __init__(self, name):
         super(Localization, self).__init__(name, String, 16)
         self.items.append(UInt32())
+
+def GetLocale(array_localization, str_loc):
+    if str_loc == 'enUS':
+        return array_localization[0]
+    elif str_loc == 'frFR':
+        return array_localization[2]
