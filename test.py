@@ -3,6 +3,6 @@
 from dbc import *
 
 Titles = CharTitlesDBC('CharTitles.dbc')
-Titles.SetVerbosity(True)
+Titles.SetLocale('frFR')
 
-print (GetLocale(Titles[2]['TitleMale'], 'frFR'))
+print (Titles[2]['TitleMale'])

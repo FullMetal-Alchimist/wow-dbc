@@ -5,13 +5,23 @@ from struct import Struct
 
 from dtypes import *
 
+def GetLocale(array_localization, str_loc):
+    if str_loc == 'enUS':
+        return array_localization[0]
+    elif str_loc == 'frFR':
+        return array_localization[2]
+
 class DBCRecord(object):
     "A simple object to convert a dict to an object"
-    def __init__(self, d):
+    def __init__(self, d, locale = 'enUS'):
         self.RecordData = d
+        self.loc = locale
 
     def __getitem__(self, key):
-        return self.RecordData[key]
+        if isinstance(self.RecordData[key], list): # Localized String
+            return GetLocale(self.RecordData[key], self.loc)
+        else:
+            return self.RecordData[key]
 
     def __setitem__(self, key, value):
         self.RecordData[key] = value
@@ -27,6 +37,7 @@ class DBCFile(object):
         self.filename = filename
 
         self.verbose = False
+        self.locale = 'enUS'
 
         if not hasattr(self, 'skeleton'):
             self.skeleton = skele
@@ -40,6 +51,9 @@ class DBCFile(object):
 
     def SetVerbosity(self, value):
         self.verbose = value
+
+    def SetLocale(self, locale):
+        self.locale = locale
 
     def ReadHeader(self):
         if not os.path.exists(self.filename):
@@ -90,7 +104,7 @@ class DBCFile(object):
                 Data_Unpacked = self.struct.unpack(self.f.read(self.RecordSize))
                 if self.verbose:
                     print('[DBC Data]: %s' % (Data_Unpacked,))
-                record = DBCRecord(self.__process_record(Data_Unpacked))
+                record = DBCRecord(self.__process_record(Data_Unpacked), self.locale)
                 self.Data[record['Id']] = record
         finally:
             self.f.close()
