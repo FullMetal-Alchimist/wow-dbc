@@ -1,4 +1,4 @@
-This is a collection of python scripts to process DBC files
+This a Python Module to process DBC files.
 
-Note: This project is currently unmaintained, I have no intention of updating it. 
-      It was last tested on WoW 3.3.3, and would need to be updated.
+Currently, it can only read DBC, it can handle only some DBC files (see structures.py)
+Updated for 3.3.5a version. (And not gonna be updated more cause I hate Cataclysm and MoP)

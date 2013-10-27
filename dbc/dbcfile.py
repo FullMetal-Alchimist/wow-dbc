@@ -110,6 +110,33 @@ class DBCFile(object):
             self.f.close()
             self.DataRead = True
 
+    def WriteData(self, filename = None):
+        if filename == None: # Replace
+            filename = self.filename
+
+        file_obj = open(filename, 'wb')
+
+        HeaderStructure = Struct('4s4i')
+        file_obj.write(HeaderStructure.pack('WDBC', Records, Fields, RecordSize, StringBlockSize))
+
+        if not self.struct: # Auto-guess all skeleton
+            self.skeleton = Array('data', Int32, Fields)
+            self.__create_struct()
+
+        if self.verbose:
+            print('[DBC Header]: Header written (%i records, %i fields, %i record size, %i string block size).' % \
+                (Records, Fields, RecordSize, StringBlockSize))
+
+        file_obj.seek(20 + Records * RecordSize)
+        file_obj.write(StringBlock)
+        file_obj.seek(20)
+
+        if self.verbose:
+            print('[DBC String Block]: Written (%s)' % StringBlock)
+
+        for Record in self.Data:
+            file_obj.write(self.struct.pack(Record))
+
     def GetData(self, idx):
         if not self.HeaderRead:
             self.ReadHeader()

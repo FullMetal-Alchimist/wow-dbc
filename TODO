@@ -1,7 +1,8 @@
 Todo:
 
+ * Implement write functionnality
  * Implement Enum type
  * Implement Foreign Keys
  * Implment many missing DBC types
- * Refactor DBCFile to support things like len, indexers, etc.
- * Clean up Localization type to default to English (or whatever language is available)
+ 
+ * Select automagically the good locale (check if locale x give null string, until we found a locale which isn't empty)
