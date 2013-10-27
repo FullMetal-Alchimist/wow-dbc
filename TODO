@@ -1,8 +1,7 @@
 Todo:
-
- * Implement write functionnality
+ 
  * Implement Enum type
  * Implement Foreign Keys
  * Implment many missing DBC types
- 
+
  * Select automagically the good locale (check if locale x give null string, until we found a locale which isn't empty)

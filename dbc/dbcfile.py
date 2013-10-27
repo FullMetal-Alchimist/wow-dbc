@@ -1,15 +1,50 @@
 #!/usr/bin/env python
 
-import os
-from struct import Struct
+import os, io
+from struct import Struct, calcsize
 
 from dtypes import *
 
+def MakeStructureFromSkeleton(Skeleton):
+    "Creates a Struct from the Skeleton"
+    StructDef = ['<'] # Little Endian
+    for item in Skeleton:
+        if isinstance(item, Array):
+            StructDef.extend(x.c for x in item.items)
+        else:
+            StructDef.append(item.c)
+    return Struct(''.join(StructDef))
+
+def GetIndexLocaleArray(Locale):
+    if Locale == 'enUS':
+        return 0
+    elif Locale == 'koKR':
+        return 1
+    elif Locale == 'frFR':
+        return 2
+    elif Locale == 'deDE':
+        return 3
+    elif Locale == 'zhCN':
+        return 4
+    elif Locale == 'zhTW':
+        return 5
+    elif Locale == 'esES' or Locale == 'esMX':
+        return 6
+    elif Locale == '??': # 7
+        return 7
+    elif Locale == 'ruRU':
+        return 8
+    else:
+        return 0 # Default enUS
+    
+def MakeLocalizationArray(StringPos, Locale):
+    "Create a localization array of 16 fields"
+    strings = [int()] * 17
+    strings[GetIndexLocaleArray(Locale)] = StringPos
+    return strings
+
 def GetLocale(array_localization, str_loc):
-    if str_loc == 'enUS':
-        return array_localization[0]
-    elif str_loc == 'frFR':
-        return array_localization[2]
+    return array_localization[GetIndexLocaleArray(str_loc)]
 
 class DBCRecord(object):
     "A simple object to convert a dict to an object"
@@ -19,12 +54,88 @@ class DBCRecord(object):
 
     def __getitem__(self, key):
         if isinstance(self.RecordData[key], list): # Localized String
-            return GetLocale(self.RecordData[key], self.loc)
+            return GetLocale(self.RecordData[key], self.loc).decode('cp1252') # Windows-specific (need UTF-8 for Linux)
         else:
             return self.RecordData[key]
 
     def __setitem__(self, key, value):
         self.RecordData[key] = value
+
+class DBCWriter(object):
+    """
+    DBC writer
+    """
+
+    HeaderStructure = Struct('4s4i')
+
+    def __init__(self, filename, skele, locale = 'enUS'):
+        self.filename = filename
+        self.verbose = False
+
+        self.locale = locale
+
+        self.Skeleton = skele
+        self.DataStructure = MakeStructureFromSkeleton(skele)
+
+        self.Data = []
+        self.StringBlockStream = io.StringIO()
+
+    def SetVerbosity(self, value):
+        self.verbose = value 
+
+    def SetLocale(self, locale):
+        self.locale = locale
+
+    def Append(self, record):
+        Record = []
+        for item in record:
+            if isinstance(item, str):
+                StringPos = self.StringBlockStream.tell()
+                if self.verbose:
+                    print('[DBC Append Record]: Add to String block (%s) at pos %i.' % \
+                        (item, StringPos))
+
+                self.StringBlockStream.write(item)
+                localizedStr = MakeLocalizationArray(StringPos, self.locale)
+                Record.extend(localizedStr)
+            else:
+                Record.append(item)
+        if self.verbose:
+            print('[DBC Append Record]: Record added %s.' % Record)
+        self.Data.append(Record)
+
+    def Write(self):
+        f = open(self.filename, 'wb')
+
+        StringBlock = self.StringBlockStream.getvalue()
+
+        Records = len(self.Data)
+        Fields = len(self.Skeleton) - 1 # Without Little Endian.
+        RecordSize = self.DataStructure.size
+        StringBlockSize = len(StringBlock)
+
+        print(self.DataStructure.format)
+
+        f.write(self.HeaderStructure.pack(b'WDBC', Records, Fields, RecordSize, StringBlockSize))
+        if self.verbose:
+            print('[DBC Header]: Header written (%i records, %i fields, %i record size, %i string block size).' % \
+                (Records, Fields, RecordSize, StringBlockSize))
+
+        f.seek(20 + Records * RecordSize)
+        f.write(StringBlock.encode('utf-8'))
+        f.seek(20)
+
+        if self.verbose:
+            print('[DBC String Block]: Written (%s).' % StringBlock)
+
+        for Record in self.Data:
+            f.write(self.DataStructure.pack(*Record))
+            if self.verbose:
+                print('[DBC Record]: Record written: %s.' % Record)
+
+        if self.verbose:
+            print('[DBC]: Write complete.')
+
 
 class DBCFile(object):
     """
@@ -41,7 +152,7 @@ class DBCFile(object):
 
         if not hasattr(self, 'skeleton'):
             self.skeleton = skele
-        self.__create_struct()
+            self.struct = MakeStructureFromSkeleton(skele)
 
         self.HeaderRead = False
         self.StringBlockRead = False
@@ -90,11 +201,11 @@ class DBCFile(object):
 
     def ReadStringBlock(self):
         self.f.seek(20 + self.Records * self.RecordSize)
-        self.StringBlock = self.f.read(self.StringBlockSize).decode('cp850')
+        self.StringBlock = self.f.read(self.StringBlockSize)
         self.f.seek(20)
 
         if self.verbose:
-            print('[DBC String Block]: %s' % (self.StringBlock.encode('cp850')))
+            print('[DBC String Block]: %s' % (self.StringBlock.decode('cp1252')))
 
         self.StringBlockRead = True
 
@@ -109,33 +220,6 @@ class DBCFile(object):
         finally:
             self.f.close()
             self.DataRead = True
-
-    def WriteData(self, filename = None):
-        if filename == None: # Replace
-            filename = self.filename
-
-        file_obj = open(filename, 'wb')
-
-        HeaderStructure = Struct('4s4i')
-        file_obj.write(HeaderStructure.pack('WDBC', Records, Fields, RecordSize, StringBlockSize))
-
-        if not self.struct: # Auto-guess all skeleton
-            self.skeleton = Array('data', Int32, Fields)
-            self.__create_struct()
-
-        if self.verbose:
-            print('[DBC Header]: Header written (%i records, %i fields, %i record size, %i string block size).' % \
-                (Records, Fields, RecordSize, StringBlockSize))
-
-        file_obj.seek(20 + Records * RecordSize)
-        file_obj.write(StringBlock)
-        file_obj.seek(20)
-
-        if self.verbose:
-            print('[DBC String Block]: Written (%s)' % StringBlock)
-
-        for Record in self.Data:
-            file_obj.write(self.struct.pack(Record))
 
     def GetData(self, idx):
         if not self.HeaderRead:
@@ -171,19 +255,6 @@ class DBCFile(object):
 
         for Record in self.Data.values():
             yield Record
-
-    def __create_struct(self):
-        "Creates a Struct from the Skeleton"
-        if self.skeleton:
-            s = ['<']
-            for item in self.skeleton:
-                if isinstance(item, Array):
-                    s.extend(x.c for x in item.items)
-                else:
-                    s.append(item.c)
-            self.struct = Struct(''.join(s))
-        else:
-            self.struct = None
 
     def __process_record(self, data):
         "Processes a record (row of data)"
