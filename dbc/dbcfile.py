@@ -98,6 +98,7 @@ class DBCWriter(object):
                         (item, StringPos))
 
                 self.StringBlockStream.write(item)
+                self.StringBlockStream.write('\0')
                 localizedStr = MakeLocalizationArray(StringPos, self.locale)
                 Record.extend(localizedStr)
             else:

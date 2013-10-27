@@ -23,3 +23,9 @@ TestTitleWrite.SetVerbosity(True)
 TestTitleWrite.Append(NewTitle)
 
 TestTitleWrite.Write()
+
+TestTitleRead = DBCFile('CharTitlesTest.dbc', CharTitlesDBC)
+TestTitleRead.SetLocale('frFR')
+TestTitleRead.SetVerbosity(True)
+
+print (TestTitleRead[178]['TitleMale'])
