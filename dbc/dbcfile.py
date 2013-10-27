@@ -40,6 +40,7 @@ def GetIndexLocaleArray(Locale):
 def MakeLocalizationArray(StringPos, Locale):
     "Create a localization array of 16 fields"
     strings = [int()] * 17
+    strings[16] = 16712190 # BitMask
     strings[GetIndexLocaleArray(Locale)] = StringPos
     return strings
 
@@ -54,7 +55,7 @@ class DBCRecord(object):
 
     def __getitem__(self, key):
         if isinstance(self.RecordData[key], list): # Localized String
-            return GetLocale(self.RecordData[key], self.loc).decode('cp1252') # Windows-specific (need UTF-8 for Linux)
+            return GetLocale(self.RecordData[key], self.loc)
         else:
             return self.RecordData[key]
 
@@ -74,11 +75,12 @@ class DBCWriter(object):
 
         self.locale = locale
 
-        self.Skeleton = skele
-        self.DataStructure = MakeStructureFromSkeleton(skele)
+        self.Skeleton = skele.Skeleton
+        self.DataStructure = MakeStructureFromSkeleton(skele.Skeleton)
 
         self.Data = []
         self.StringBlockStream = io.StringIO()
+        self.StringBlockStream.write('\0')
 
     def SetVerbosity(self, value):
         self.verbose = value 
@@ -114,8 +116,6 @@ class DBCWriter(object):
         RecordSize = self.DataStructure.size
         StringBlockSize = len(StringBlock)
 
-        print(self.DataStructure.format)
-
         f.write(self.HeaderStructure.pack(b'WDBC', Records, Fields, RecordSize, StringBlockSize))
         if self.verbose:
             print('[DBC Header]: Header written (%i records, %i fields, %i record size, %i string block size).' % \
@@ -144,15 +144,14 @@ class DBCFile(object):
     
     header_struct = Struct('4s4i') # 4 char (WDBC) and 4 ints.
 
-    def __init__(self, filename, skele=None):
+    def __init__(self, filename, skele):
         self.filename = filename
 
         self.verbose = False
         self.locale = 'enUS'
 
-        if not hasattr(self, 'skeleton'):
-            self.skeleton = skele
-            self.struct = MakeStructureFromSkeleton(skele)
+        self.skeleton = skele.Skeleton
+        self.struct = MakeStructureFromSkeleton(skele.Skeleton)
 
         self.HeaderRead = False
         self.StringBlockRead = False
@@ -201,11 +200,12 @@ class DBCFile(object):
 
     def ReadStringBlock(self):
         self.f.seek(20 + self.Records * self.RecordSize)
-        self.StringBlock = self.f.read(self.StringBlockSize)
+        self.StringBlockBytes = self.f.read(self.StringBlockSize)
+        self.StringBlock = self.StringBlockBytes.decode('cp1252')
         self.f.seek(20)
 
         if self.verbose:
-            print('[DBC String Block]: %s' % (self.StringBlock.decode('cp1252')))
+            print('[DBC String Block]: %s' % (self.StringBlock))
 
         self.StringBlockRead = True
 

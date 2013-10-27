@@ -1,32 +1,31 @@
 #!/usr/bin/env python
 
-from dbcfile import DBCFile
 from dtypes import *
 
-class ChatProfanityDBC(DBCFile):
+class ChatProfanityDBC(object):
     "A collection of all the words censored by the word filter (as a regex)"
-    skeleton = [
+    Skeleton = [
         Int32('Id'),
         String('Word'),
         Int32('Lang'),
     ]
     
-class GameTipsDBC(DBCFile):
+class GameTipsDBC(object):
     "A collection of tips displayed during loading screens"
-    skeleton = [
+    Skeleton = [
         Int32('Id'),
         Localization('Tip'),
     ]
 
-class SpamMessagesDBC(DBCFile):
+class SpamMessagesDBC(object):
     "A collection of Regular Expressions to match spam websites"
-    skeleton = [
+    Skeleton = [
         Int32('Id'),
         String('RegEx'),
     ]
 
-class AchievementDBC(DBCFile):
-    skeleton = [
+class AchievementDBC(object):
+    Skeleton = [
         Int32('Id'),
         Int32('Faction'),
         Int32('Map'),
@@ -43,17 +42,17 @@ class AchievementDBC(DBCFile):
         Int32('RefAchievement'),
     ]
 
-class AchievementCategoryDBC(DBCFile):
+class AchievementCategoryDBC(object):
     "Achievement Categories"
-    skeleton = [
+    Skeleton = [
         Int32('Id'),
         Int32('Parent'),
         Localization('Name'),
         UInt32('SortOrder'),
     ]
 
-class AchievementCriteriaDBC(DBCFile):
-    skeleton = [
+class AchievementCriteriaDBC(object):
+    Skeleton = [
         Int32('Id'),
         Int32('AchievementID'),
         Int32('Type'),
@@ -66,8 +65,8 @@ class AchievementCriteriaDBC(DBCFile):
         Int32('SortOrder'),
     ]
     
-class CharTitlesDBC(DBCFile):
-    skeleton = [
+class CharTitlesDBC(object):
+    Skeleton = [
         Int32('Id'),
         PadByte(),#Int32('condition), Never used
         Localization('TitleMale'),
@@ -75,8 +74,8 @@ class CharTitlesDBC(DBCFile):
         Int32('SelectionIndex'),
     ]
 
-class SpellDBC(DBCFile):
-    skeleton = [
+class SpellDBC(object):
+    Skeleton = [
         UInt32('Id'),
         UInt32('Category'),
         UInt32('Dispel'),

@@ -2,8 +2,11 @@
 
 from dbc import *
 
-Titles = CharTitlesDBC('CharTitles.dbc')
+Titles = DBCFile('CharTitles.dbc', CharTitlesDBC)
 Titles.SetLocale('frFR')
+Titles.SetVerbosity(True)
+
+print (Titles[1]['TitleMale'])
 
 NewTitle = [178, '%s Bezarius', '%s Bezarius', 178]
 skeleton = [
@@ -14,7 +17,7 @@ skeleton = [
         Int32('SelectionIndex'),
 ]
 
-TestTitleWrite = DBCWriter('CharTitlesTest.dbc', skeleton, 'frFR')
+TestTitleWrite = DBCWriter('CharTitlesTest.dbc', CharTitlesDBC, 'frFR')
 TestTitleWrite.SetVerbosity(True)
 
 TestTitleWrite.Append(NewTitle)
