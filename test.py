@@ -2,30 +2,28 @@
 
 from dbc import *
 
+# Read Legacy file
+
 Titles = DBCFile('CharTitles.dbc', CharTitlesDBC)
 Titles.SetLocale('frFR')
-Titles.SetVerbosity(True)
+# Titles.SetVerbosity(True)
+Titles.Load()
 
-print (Titles[1]['TitleMale'])
-
+# Write in DBC
 NewTitle = [178, '%s Bezarius', '%s Bezarius', 178]
-skeleton = [
-        Int32('Id'),
-        PadByte(),#Int32('condition), Never used
-        Localization('TitleMale'),
-        Localization('TitleFemale'),
-        Int32('SelectionIndex'),
-]
 
 TestTitleWrite = DBCWriter('CharTitlesTest.dbc', CharTitlesDBC, 'frFR')
-TestTitleWrite.SetVerbosity(True)
+# TestTitleWrite.SetVerbosity(True)
 
+TestTitleWrite.AddRecords(Titles.GetRecords())
 TestTitleWrite.Append(NewTitle)
 
 TestTitleWrite.Write()
 
+# Read written file
+
 TestTitleRead = DBCFile('CharTitlesTest.dbc', CharTitlesDBC)
 TestTitleRead.SetLocale('frFR')
-TestTitleRead.SetVerbosity(True)
+# TestTitleRead.SetVerbosity(True)
 
 print (TestTitleRead[178]['TitleMale'])

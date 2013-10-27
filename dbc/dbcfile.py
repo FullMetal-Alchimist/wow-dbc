@@ -62,6 +62,13 @@ class DBCRecord(object):
     def __setitem__(self, key, value):
         self.RecordData[key] = value
 
+    def __iter__(self):
+        for item in self.RecordData.values():
+            if isinstance(item, list): # Localized String
+                yield GetLocale(item, self.loc)
+            else:
+                yield item
+
 class DBCWriter(object):
     """
     DBC writer
@@ -82,27 +89,48 @@ class DBCWriter(object):
         self.StringBlockStream = io.StringIO()
         self.StringBlockStream.write('\0')
 
+    def AddRecords(self, records):
+        for Record in records:
+            self.Append(Record)
+
     def SetVerbosity(self, value):
         self.verbose = value 
 
     def SetLocale(self, locale):
         self.locale = locale
 
+    def WriteStringLocalized(self, item):
+        StringPos = self.StringBlockStream.tell()
+        if self.verbose:
+            print('[DBC Append Record]: Add to String block (%s) at pos %i.' % \
+                (item, StringPos))
+
+        self.StringBlockStream.write(item)
+        self.StringBlockStream.write('\0')
+        localizedStr = MakeLocalizationArray(StringPos, self.locale)
+
+        return localizedStr
+
     def Append(self, record):
         Record = []
-        for item in record:
-            if isinstance(item, str):
-                StringPos = self.StringBlockStream.tell()
-                if self.verbose:
-                    print('[DBC Append Record]: Add to String block (%s) at pos %i.' % \
-                        (item, StringPos))
 
-                self.StringBlockStream.write(item)
-                self.StringBlockStream.write('\0')
-                localizedStr = MakeLocalizationArray(StringPos, self.locale)
-                Record.extend(localizedStr)
-            else:
-                Record.append(item)
+        if isinstance(record, DBCRecord):
+            for item in self.Skeleton:
+                if item.name: # Pad Bytes ignored
+                    rd = record[item.name]
+                    if isinstance(rd, Localization):
+                        Record.extend(self.WriteStringLocalized(GetLocale(rd, self.locale)))
+                    elif isinstance(rd, str):
+                        Record.extend(self.WriteStringLocalized(rd))
+                    else:
+                        Record.append(rd)
+        else:
+            for item in record:
+                if isinstance(item, str):
+                    Record.extend(self.WriteStringLocalized(item))
+                else:
+                    Record.append(item)
+
         if self.verbose:
             print('[DBC Append Record]: Record added %s.' % Record)
         self.Data.append(Record)
@@ -123,7 +151,7 @@ class DBCWriter(object):
                 (Records, Fields, RecordSize, StringBlockSize))
 
         f.seek(20 + Records * RecordSize)
-        f.write(StringBlock.encode('utf-8'))
+        f.write(StringBlock.encode('cp1252'))
         f.seek(20)
 
         if self.verbose:
@@ -234,6 +262,14 @@ class DBCFile(object):
 
         return self.Data[idx]
 
+    def Load(self):
+        if not self.HeaderRead:
+            self.ReadHeader()
+        if not self.StringBlockRead:
+            self.ReadStringBlock()
+        if not self.DataRead:
+            self.ReadData()
+
     def __getitem__(self, key):
         return self.GetData(key)
 
@@ -256,6 +292,9 @@ class DBCFile(object):
 
         for Record in self.Data.values():
             yield Record
+
+    def GetRecords(self):
+        return self.Data.values()
 
     def __process_record(self, data):
         "Processes a record (row of data)"
