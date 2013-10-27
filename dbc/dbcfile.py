@@ -173,11 +173,11 @@ class DBCFile(object):
     
     header_struct = Struct('4s4i') # 4 char (WDBC) and 4 ints.
 
-    def __init__(self, filename, skele):
+    def __init__(self, filename, skele, locale='enUS'):
         self.filename = filename
 
         self.verbose = False
-        self.locale = 'enUS'
+        self.locale = locale
 
         self.skeleton = skele.Skeleton
         self.struct = MakeStructureFromSkeleton(skele.Skeleton)
@@ -234,7 +234,7 @@ class DBCFile(object):
         self.f.seek(20)
 
         if self.verbose:
-            print('[DBC String Block]: %s' % (self.StringBlock))
+            print('[DBC String Block]: %s' % (self.StringBlock.encode('cp1252')))
 
         self.StringBlockRead = True
 
@@ -332,7 +332,7 @@ class DBCFile(object):
                     s = self.StringBlock[data:self.StringBlock.index('\0', data)]
                     output[name] = str(s)
                     if self.verbose:
-                        print('[DBC Field]: String %s loaded.' % s)
+                        print('[DBC Field]: String %s loaded.' % s.encode('cp1252'))
         elif not isinstance(_type, PadByte): # Ignore PadBytes
             output[name] = data
         return output
